@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart';
+import 'package:tixclick/screens/login_screen.dart';
+import 'package:tixclick/screens/main_screen.dart';
+// import 'screens/home_screen.dart';
+import 'widgets/splash_screen.dart';
 
 void main() {
   runApp(const TixClickApp());
@@ -58,7 +61,13 @@ class TixClickApp extends StatelessWidget {
           secondary: Color(0xFF3D5AFE), // Warna aksen yang cocok dengan navy
         ),
       ),
-      home: const HomeScreen(),
+      initialRoute: SplashScreen.id,
+      routes: {
+        "/login": (context) => LoginScreen(),
+        SplashScreen.id: (context) => SplashScreen(),
+        MainScreen.id: (context) => MainScreen(),
+      },
+      // home: const SplashScreen(),
       debugShowCheckedModeBanner: false,
     );
   }
