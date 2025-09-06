@@ -121,8 +121,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.18.1"
-=======
->>>>>>> 993bf42bcb5066326c76ab82adb26fdf54e1c9e5
   leak_tracker:
     dependency: transitive
     description:
