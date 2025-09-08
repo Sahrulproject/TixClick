@@ -1,144 +1,132 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tixclick/api/endpoint/endpoint.dart';
+import 'package:tixclick/models/register_user_model.dart';
 
 class AuthService {
-  static const String _tokenKey = 'auth_token';
-  static const String _userIdKey = 'user_id';
-  static const String _userEmailKey = 'user_email';
-  static const String _userNameKey = 'user_name';
+  static Future<RegisterUserModel?> login(String email, String password) async {
+    try {
+      final response = await http.post(
+        Uri.parse(Endpoint.login),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({'email': email, 'password': password}),
+      );
 
-  // Simpan token setelah login
-  static Future<void> saveToken(String? token) async {
-    if (token != null && token.isNotEmpty) {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('token', token);
+      print('Login Response status: ${response.statusCode}');
+      print('Login Response body: ${response.body}'); // DEBUG
+
+      if (response.statusCode == 200) {
+        final userData = registerUserModelFromJson(response.body);
+
+        // PERBAIKAN: Token sekarang di root, bukan dalam data
+        if (userData.token != null && userData.token!.isNotEmpty) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('token', userData.token!);
+          print('Token saved: ${userData.token}'); // DEBUG
+        } else {
+          print('Token is null or empty'); // DEBUG
+        }
+
+        return userData;
+      } else {
+        // Handle error response
+        final errorData = json.decode(response.body);
+        final errorMessage =
+            errorData['message'] ??
+            'Login failed with status ${response.statusCode}';
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      print('Login error: $e'); // DEBUG
+      throw Exception('Login failed: $e');
     }
   }
 
-  // static Future<void> saveToken(String token) async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   await prefs.setString(_tokenKey, token);
-  // }
+  static Future<RegisterUserModel?> register(
+    String name,
+    String email,
+    String password,
+  ) async {
+    try {
+      final response = await http.post(
+        Uri.parse(Endpoint.register),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'name': name,
+          'email': email,
+          'password': password,
+          'password_confirmation': password,
+        }),
+      );
 
-  // Ambil token
-  static Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('token');
-  }
+      print('Register Response status: ${response.statusCode}');
+      print('Register Response body: ${response.body}'); // DEBUG
 
-  // static Future<String?> getToken() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   return prefs.getString(_tokenKey);
-  // }
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final userData = registerUserModelFromJson(response.body);
 
-  // Hapus token (logout)
-  static Future<void> removeToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-  }
+        // PERBAIKAN: Token sekarang di root, bukan dalam data
+        if (userData.token != null && userData.token!.isNotEmpty) {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('token', userData.token!);
+          print('Token saved: ${userData.token}'); // DEBUG
+        } else {
+          print('Token is null or empty'); // DEBUG
+        }
 
-  // Simpan user ID
-  static Future<void> saveUserId(int userId) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt(_userIdKey, userId);
-  }
-
-  // Ambil user ID
-  static Future<int?> getUserId() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getInt(_userIdKey);
-  }
-
-  // Simpan user email
-  static Future<void> saveUserEmail(String email) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_email', email);
-  }
-
-  // static Future<void> saveUserEmail(String email) async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   await prefs.setString(_userEmailKey, email);
-  // }
-
-  // Ambil user email
-  static Future<String?> getUserEmail() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('user_email');
-  }
-
-  // static Future<String?> getUserEmail() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   return prefs.getString(_userEmailKey);
-  // }
-
-  // Simpan user name
-  static Future<void> saveUserName(String name) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_name', name);
-  }
-
-  // static Future<void> saveUserName(String name) async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   await prefs.setString(_userNameKey, name);
-  // }
-
-  // Ambil user name
-  static Future<String?> getUserName() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('user_name');
-  }
-
-  // static Future<String?> getUserName() async {
-  //   final prefs = await SharedPreferences.getInstance();
-  //   return prefs.getString(_userNameKey);
-  // }
-
-  // Cek apakah user sudah login
-  static Future<bool> isLoggedIn() async {
-    final token = await getToken();
-    return token != null && token.isNotEmpty;
-  }
-
-  // Dapatkan semua data user
-  static Future<Map<String, dynamic>> getUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-    return {
-      'token': prefs.getString(_tokenKey),
-      'user_id': prefs.getInt(_userIdKey),
-      'email': prefs.getString(_userEmailKey),
-      'name': prefs.getString(_userNameKey),
-    };
-  }
-
-  // Simpan semua data user setelah login
-  static Future<void> saveUserData(Map<String, dynamic> userData) async {
-    final prefs = await SharedPreferences.getInstance();
-
-    if (userData['token'] != null) {
-      await prefs.setString(_tokenKey, userData['token']);
-    }
-    if (userData['user_id'] != null) {
-      await prefs.setInt(_userIdKey, userData['user_id']);
-    }
-    if (userData['email'] != null) {
-      await prefs.setString(_userEmailKey, userData['email']);
-    }
-    if (userData['name'] != null) {
-      await prefs.setString(_userNameKey, userData['name']);
+        return userData;
+      } else {
+        // Handle error response
+        final errorData = json.decode(response.body);
+        final errorMessage =
+            errorData['message'] ??
+            'Registration failed with status ${response.statusCode}';
+        throw Exception(errorMessage);
+      }
+    } catch (e) {
+      print('Registration error: $e'); // DEBUG
+      throw Exception('Registration failed: $e');
     }
   }
 
-  // Logout - hapus semua data user
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
-    await prefs.remove(_userIdKey);
-    await prefs.remove(_userEmailKey);
-    await prefs.remove(_userNameKey);
+    await prefs.remove('token');
+    print('User logged out and token removed'); // DEBUG
   }
 
-  // Clear semua data preferences (untuk debug)
-  static Future<void> clearAll() async {
+  // Method untuk check jika user sudah login
+  static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    final token = prefs.getString('token');
+    final isLoggedIn = token != null && token.isNotEmpty;
+    print('User logged in: $isLoggedIn'); // DEBUG
+    return isLoggedIn;
+  }
+
+  // Method untuk mendapatkan token
+  static Future<String?> getToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    print('Retrieved token: $token'); // DEBUG
+    return token;
+  }
+
+  // Method untuk mendapatkan user data dari shared preferences (jika disimpan)
+  static Future<Map<String, dynamic>?> getUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userDataJson = prefs.getString('user_data');
+    if (userDataJson != null) {
+      return json.decode(userDataJson);
+    }
+    return null;
+  }
+
+  // Method untuk menyimpan user data ke shared preferences
+  static Future<void> saveUserData(User user) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_data', json.encode(user.toJson()));
+    print('User data saved: ${user.toJson()}'); // DEBUG
   }
 }

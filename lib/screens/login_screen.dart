@@ -1,424 +1,171 @@
 import 'package:flutter/material.dart';
-import 'package:tixclick/api/post_api_screen.dart';
-import 'package:tixclick/api/register_user.dart';
-import 'package:tixclick/extension/navigation.dart';
-import 'package:tixclick/models/register_user_model.dart';
-import 'package:tixclick/screens/home_screen.dart';
 import 'package:tixclick/services/auth_service.dart';
+import 'package:tixclick/models/register_user_model.dart';
+import 'package:tixclick/screens/main_screen.dart';
 
-class LoginAPIScreen extends StatefulWidget {
-  const LoginAPIScreen({super.key});
-  static const id = "/login_api";
+class LoginScreen extends StatefulWidget {
+  const LoginScreen({Key? key}) : super(key: key);
+  static const id = "/login_screen";
+
   @override
-  State<LoginAPIScreen> createState() => _LoginAPIScreenState();
+  _LoginScreenState createState() => _LoginScreenState();
 }
 
-class _LoginAPIScreenState extends State<LoginAPIScreen> {
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
-  RegisterUserModel? user;
-  String? errorMessage;
-  bool isLoading = false;
-  bool isVisibility = false;
+class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+  bool _isLoading = false;
+  String? _errorMessage;
+
+  Future<void> _login() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+
+      try {
+        final userModel = await AuthService.login(
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
+        );
+
+        setState(() {
+          _isLoading = false;
+        });
+
+        if (userModel != null) {
+          // Simpan user data jika ada
+          if (userModel.user != null) {
+            await AuthService.saveUserData(userModel.user!);
+          }
+
+          // Login berhasil
+          Navigator.pushReplacementNamed(context, MainScreen.id);
+        } else {
+          setState(() {
+            _errorMessage = 'Login failed. Invalid response from server.';
+          });
+        }
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = e.toString().replaceAll('Exception: ', '');
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF001F3F),
-      body: Stack(children: [buildBackground(), buildLayer()]),
-    );
-  }
-
-  void loginUser() async {
-    setState(() {
-      isLoading = true;
-      errorMessage = null;
-    });
-
-    final email = emailController.text.trim();
-    final password = passwordController.text.trim();
-
-    if (email.isEmpty || password.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Email dan Password tidak boleh kosong")),
-      );
-      setState(() => isLoading = false);
-      return;
-    }
-
-    try {
-      final result = await AuthenticationAPI.loginUser(
-        email: email,
-        password: password,
-      );
-
-      setState(() {
-        user = result;
-      });
-
-      // DEBUG PRINT
-      _debugPrintResponse();
-
-      // PERBAIKAN: Cek jika login berhasil meskipun token null
-      if (user?.message.toLowerCase().contains("berhasil") == true) {
-        // Simpan email saja jika token tidak ada
-        await AuthService.saveUserEmail(email);
-        await AuthService.saveUserName(
-          email.split('@')[0],
-        ); // Gunakan nama dari email
-
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("Login berhasil")));
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => HomeScreen()),
-        );
-      } else {
-        throw Exception(user?.message ?? "Login gagal");
-      }
-    } catch (e) {
-      _debugPrintError(e);
-      setState(() {
-        errorMessage = e.toString().replaceAll("Exception: ", "");
-      });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Login gagal: $errorMessage")));
-    } finally {
-      setState(() => isLoading = false);
-    }
-  }
-
-  // void loginUser() async {
-  //   setState(() {
-  //     isLoading = true;
-  //     errorMessage = null;
-  //   });
-  //   final email = emailController.text.trim();
-  //   final password = passwordController.text.trim();
-
-  //   if (email.isEmpty || password.isEmpty) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(content: Text("Email dan Password tidak boleh kosong")),
-  //     );
-  //     setState(() => isLoading = false);
-  //     return;
-  //   }
-
-  //   try {
-  //     final result = await AuthenticationAPI.loginUser(
-  //       email: email,
-  //       password: password,
-  //     );
-
-  //     setState(() {
-  //       user = result;
-  //     });
-
-  //     // DEBUG PRINT
-  //     _debugPrintResponse();
-
-  //     // PERBAIKAN: Token sekarang di root, bukan dalam data
-  //     if (user?.token != null) {
-  //       await _saveUserData(email);
-
-  //       ScaffoldMessenger.of(
-  //         context,
-  //       ).showSnackBar(const SnackBar(content: Text("Login berhasil")));
-
-  //       Navigator.pushReplacement(
-  //         context,
-  //         MaterialPageRoute(builder: (context) => HomeScreen()),
-  //       );
-  //     } else {
-  //       throw Exception("Token tidak ditemukan dalam response");
-  //     }
-  //   } catch (e) {
-  //     _debugPrintError(e);
-  //     setState(() {
-  //       errorMessage = e.toString();
-  //     });
-  //     ScaffoldMessenger.of(
-  //       context,
-  //     ).showSnackBar(SnackBar(content: Text("Login gagal: $errorMessage")));
-  //   } finally {
-  //     setState(() => isLoading = false);
-  //   }
-  // }
-
-  // Method untuk debug print response
-  void _debugPrintResponse() {
-    print('=== DEBUG LOGIN RESPONSE ===');
-    print('Message: ${user?.message}');
-    print('Token: ${user?.token}'); // Token di root
-    print('User name: ${user?.user?.name}');
-    print('User email: ${user?.user?.email}');
-    print('User ID: ${user?.user?.id}');
-    print('Email verified: ${user?.user?.emailVerifiedAt}');
-    print('Full response: ${user?.toJson()}');
-    print('============================');
-  }
-
-  // Method untuk debug print error
-  void _debugPrintError(dynamic e) {
-    print('=== LOGIN ERROR ===');
-    print('Error: $e');
-    print('Error type: ${e.runtimeType}');
-    if (e is Error) {
-      print('Stack trace: ${e.stackTrace}');
-    }
-    print('===================');
-  }
-
-  // Method untuk save user data - DIUBAH untuk model baru
-  Future<void> _saveUserData(String email) async {
-    // PERBAIKAN: Token di root, bukan dalam data
-    if (user?.token != null && user!.token!.isNotEmpty) {
-      await AuthService.saveToken(user!.token!);
-    }
-
-    // simpan email
-    await AuthService.saveUserEmail(email);
-
-    // simpan nama - prioritaskan dari response, jika tidak ada gunakan dari email
-    final userName = user?.user?.name ?? email.split('@')[0];
-    await AuthService.saveUserName(userName);
-
-    // Simpan user ID jika ada
-    final userId = user?.user?.id;
-    if (userId != null) {
-      await AuthService.saveUserId(userId);
-    }
-
-    print('=== DATA YANG DISIMPAN ===');
-    print('Token: ${user?.token ?? "null"}');
-    print('Name: $userName');
-    print('Email: $email');
-    print('ID: $userId');
-    print('==========================');
-  }
-
-  SafeArea buildLayer() {
-    return SafeArea(
-      child: Padding(
+      appBar: AppBar(
+        title: const Text('Login'),
+        backgroundColor: Colors.deepPurple,
+      ),
+      body: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Center(
+        child: Form(
+          key: _formKey,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset(
-                "assets/images/lg_tixclick.png",
-                height: 180,
-                width: 180,
-                fit: BoxFit.contain,
-              ),
-              const SizedBox(height: 8),
-              // Text(
-              //   "TIXCLICK",
-              //   style: TextStyle(
-              //     fontSize: 30,
-              //     fontFamily: "BebasNeue",
-              //     fontWeight: FontWeight.bold,
-              //     color: Colors.white,
-              //   ),
-              // ),
-              height(8),
-              buildTitle("Email Address"),
-              height(8),
-              buildTextField(
-                hintText: "Enter your email",
-                controller: emailController,
-              ),
-              height(12),
-              buildTitle("Password"),
-              height(8),
-              buildTextField(
-                hintText: "Enter your password",
-                isPassword: true,
-                controller: passwordController,
-              ),
-              height(8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {
-                    // Forgot password functionality
-                  },
-                  child: Text(
-                    "Forgot Password?",
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.white,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
+              TextFormField(
+                controller: _emailController,
+                decoration: const InputDecoration(
+                  labelText: 'Email',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.email),
                 ),
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your email';
+                  }
+                  if (!value.contains('@')) {
+                    return 'Please enter a valid email';
+                  }
+                  return null;
+                },
               ),
-              height(8),
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  onPressed: isLoading ? null : loginUser,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: isLoading
-                        ? Colors.grey
-                        : const Color.fromARGB(255, 255, 255, 255),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  child: isLoading
-                      ? const CircularProgressIndicator(color: Colors.black)
-                      : Text(
-                          "Login",
-                          style: TextStyle(fontSize: 16, color: Colors.black),
-                        ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _passwordController,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
+                  prefixIcon: Icon(Icons.lock),
                 ),
+                obscureText: true,
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter your password';
+                  }
+                  if (value.length < 6) {
+                    return 'Password must be at least 6 characters';
+                  }
+                  return null;
+                },
               ),
-              height(122),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Expanded(
-                    child: Container(
-                      margin: const EdgeInsets.only(right: 8),
-                      height: 1,
-                      color: Colors.white,
-                    ),
+              const SizedBox(height: 16),
+
+              // Tampilkan error message
+              if (_errorMessage != null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red[50],
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red),
                   ),
-                  Text(
-                    "Or Sign In With",
-                    style: TextStyle(fontSize: 12, color: Colors.white),
-                  ),
-                  Expanded(
-                    child: Container(
-                      margin: const EdgeInsets.only(left: 8),
-                      height: 1,
-                      color: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
-              height(12),
-              SizedBox(
-                height: 48,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                  ),
-                  onPressed: () {
-                    // Google sign in functionality
-                  },
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Image.asset(
-                        "assets/images/google.png",
-                        height: 20,
-                        width: 20,
+                      const Icon(Icons.error, color: Colors.red),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _errorMessage!,
+                          style: const TextStyle(color: Colors.red),
+                        ),
                       ),
-                      width(4),
-                      Text("Google", style: TextStyle(color: Colors.black)),
                     ],
                   ),
                 ),
-              ),
-              height(8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    "Don't have an account?",
-                    style: TextStyle(fontSize: 12, color: Colors.white),
-                  ),
-                  TextButton(
-                    onPressed: () {
-                      context.push(const PostApiScreen());
-                    },
-                    child: Text(
-                      "Sign Up",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
+
+              const SizedBox(height: 16),
+              _isLoading
+                  ? const CircularProgressIndicator()
+                  : SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: _login,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepPurple,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          'Login',
+                          style: TextStyle(fontSize: 16),
+                        ),
                       ),
                     ),
-                  ),
-                ],
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () {
+                  // Navigate to register screen
+                  // Navigator.pushNamed(context, RegisterScreen.id);
+                },
+                child: const Text('Don\'t have an account? Register here'),
               ),
             ],
           ),
         ),
       ),
-    );
-  }
-
-  Container buildBackground() {
-    return Container(
-      height: double.infinity,
-      width: double.infinity,
-      decoration: const BoxDecoration(),
-    );
-  }
-
-  TextField buildTextField({
-    String? hintText,
-    bool isPassword = false,
-    TextEditingController? controller,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: isPassword ? !isVisibility : false,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        hintText: hintText,
-        hintStyle: TextStyle(color: Colors.white.withOpacity(0.7)),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(32),
-          borderSide: BorderSide(
-            color: Colors.white.withOpacity(0.5),
-            width: 1.0,
-          ),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(32),
-          borderSide: const BorderSide(color: Colors.white, width: 1.0),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(32),
-          borderSide: BorderSide(
-            color: Colors.white.withOpacity(0.5),
-            width: 1.0,
-          ),
-        ),
-        suffixIcon: isPassword
-            ? IconButton(
-                onPressed: () {
-                  setState(() {
-                    isVisibility = !isVisibility;
-                  });
-                },
-                icon: Icon(
-                  isVisibility ? Icons.visibility : Icons.visibility_off,
-                  color: Colors.white,
-                ),
-              )
-            : null,
-      ),
-    );
-  }
-
-  SizedBox height(double height) => SizedBox(height: height);
-  SizedBox width(double width) => SizedBox(width: width);
-
-  Widget buildTitle(String text) {
-    return Row(
-      children: [
-        Text(text, style: const TextStyle(fontSize: 12, color: Colors.white)),
-      ],
     );
   }
 }

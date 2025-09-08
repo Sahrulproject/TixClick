@@ -29,7 +29,7 @@ class _SplashScreenState extends State<SplashScreen> {
       if (isLogin == true) {
         context.pushReplacementNamed(MainScreen.id);
       } else {
-        context.push(LoginAPIScreen());
+        context.push(LoginScreen());
       }
     });
   }

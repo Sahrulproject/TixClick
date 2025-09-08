@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../models/movie_model.dart';
-import '../models/showtime_model.dart';
-import '../services/api_service.dart';
-import '../widgets/seat_widget.dart';
+import 'package:tixclick/models/movie_model.dart';
+import 'package:tixclick/models/showtime_model.dart';
+import 'package:tixclick/services/api_service.dart';
+import 'package:tixclick/widgets/seat_widget.dart';
 import 'confirmation_screen.dart';
 
 class BookingScreen extends StatefulWidget {
