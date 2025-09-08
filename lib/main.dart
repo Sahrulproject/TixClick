@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:tixclick/screens/login_screen.dart';
 import 'package:tixclick/screens/main_screen.dart';
-// import 'screens/home_screen.dart';
-import 'widgets/splash_screen.dart';
+import 'package:tixclick/widgets/splash_screen.dart';
 
 void main() {
   runApp(const TixClickApp());
@@ -23,7 +22,7 @@ const MaterialColor navy = MaterialColor(0xFF001F3F, <int, Color>{
 });
 
 class TixClickApp extends StatelessWidget {
-  const TixClickApp({Key? key}) : super(key: key);
+  const TixClickApp({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -63,11 +62,11 @@ class TixClickApp extends StatelessWidget {
       ),
       initialRoute: SplashScreen.id,
       routes: {
-        "/login": (context) => LoginScreen(),
+        "/login_api": (context) => LoginAPIScreen(),
         SplashScreen.id: (context) => SplashScreen(),
         MainScreen.id: (context) => MainScreen(),
       },
-      // home: const SplashScreen(),
+      // home: const HomeScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

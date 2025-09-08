@@ -1,55 +1,57 @@
 import 'package:flutter/material.dart';
-import 'package:tixclick/api/post_api_screen.dart';
 import 'package:tixclick/api/register_user.dart';
-import 'package:tixclick/extension/navigation.dart';
 import 'package:tixclick/models/register_user_model.dart';
-import 'package:tixclick/screens/home_screen.dart';
-import 'package:tixclick/services/auth_service.dart';
+import 'package:tixclick/screens/login_screen.dart';
+import 'package:tixclick/services/auth_service.dart'; // Ganti dengan AuthService
 
-class LoginAPIScreen extends StatefulWidget {
-  const LoginAPIScreen({super.key});
-  static const id = "/login_api";
+class PostApiScreen extends StatefulWidget {
+  const PostApiScreen({super.key});
+  static const id = '/post_api_screen';
   @override
-  State<LoginAPIScreen> createState() => _LoginAPIScreenState();
+  State<PostApiScreen> createState() => _PostApiScreenState();
 }
 
-class _LoginAPIScreenState extends State<LoginAPIScreen> {
+class _PostApiScreenState extends State<PostApiScreen> {
   final TextEditingController emailController = TextEditingController();
+  final TextEditingController nameController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   RegisterUserModel? user;
   String? errorMessage;
-  bool isLoading = false;
   bool isVisibility = false;
+  bool isLoading = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF001F3F),
+      backgroundColor: const Color(0xFF2A3B55),
       body: Stack(children: [buildBackground(), buildLayer()]),
     );
   }
 
-  void loginUser() async {
+  void registerUser() async {
     setState(() {
       isLoading = true;
       errorMessage = null;
     });
-
     final email = emailController.text.trim();
     final password = passwordController.text.trim();
+    final name = nameController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
+    if (email.isEmpty || password.isEmpty || name.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Email dan Password tidak boleh kosong")),
+        const SnackBar(
+          content: Text("Email, Password, dan Nama tidak boleh kosong"),
+        ),
       );
       setState(() => isLoading = false);
       return;
     }
 
     try {
-      final result = await AuthenticationAPI.loginUser(
+      final result = await AuthenticationAPI.registerUser(
         email: email,
         password: password,
+        name: name,
       );
 
       setState(() {
@@ -59,98 +61,40 @@ class _LoginAPIScreenState extends State<LoginAPIScreen> {
       // DEBUG PRINT
       _debugPrintResponse();
 
-      // PERBAIKAN: Cek jika login berhasil meskipun token null
-      if (user?.message.toLowerCase().contains("berhasil") == true) {
-        // Simpan email saja jika token tidak ada
-        await AuthService.saveUserEmail(email);
-        await AuthService.saveUserName(
-          email.split('@')[0],
-        ); // Gunakan nama dari email
+      // PERBAIKAN: Token sekarang di root, bukan dalam data
+      if (user?.token != null) {
+        await _saveUserData(email, name);
 
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text("Login berhasil")));
+        ).showSnackBar(const SnackBar(content: Text("Pendaftaran berhasil")));
 
+        print(user?.toJson());
+
+        // Navigate ke login screen setelah registrasi berhasil
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => HomeScreen()),
+          MaterialPageRoute(builder: (context) => LoginAPIScreen()),
         );
       } else {
-        throw Exception(user?.message ?? "Login gagal");
+        throw Exception("Token tidak ditemukan dalam response");
       }
     } catch (e) {
-      _debugPrintError(e);
+      print(e);
       setState(() {
-        errorMessage = e.toString().replaceAll("Exception: ", "");
+        errorMessage = e.toString();
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("Login gagal: $errorMessage")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Registrasi gagal: $errorMessage")),
+      );
     } finally {
       setState(() => isLoading = false);
     }
   }
 
-  // void loginUser() async {
-  //   setState(() {
-  //     isLoading = true;
-  //     errorMessage = null;
-  //   });
-  //   final email = emailController.text.trim();
-  //   final password = passwordController.text.trim();
-
-  //   if (email.isEmpty || password.isEmpty) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       const SnackBar(content: Text("Email dan Password tidak boleh kosong")),
-  //     );
-  //     setState(() => isLoading = false);
-  //     return;
-  //   }
-
-  //   try {
-  //     final result = await AuthenticationAPI.loginUser(
-  //       email: email,
-  //       password: password,
-  //     );
-
-  //     setState(() {
-  //       user = result;
-  //     });
-
-  //     // DEBUG PRINT
-  //     _debugPrintResponse();
-
-  //     // PERBAIKAN: Token sekarang di root, bukan dalam data
-  //     if (user?.token != null) {
-  //       await _saveUserData(email);
-
-  //       ScaffoldMessenger.of(
-  //         context,
-  //       ).showSnackBar(const SnackBar(content: Text("Login berhasil")));
-
-  //       Navigator.pushReplacement(
-  //         context,
-  //         MaterialPageRoute(builder: (context) => HomeScreen()),
-  //       );
-  //     } else {
-  //       throw Exception("Token tidak ditemukan dalam response");
-  //     }
-  //   } catch (e) {
-  //     _debugPrintError(e);
-  //     setState(() {
-  //       errorMessage = e.toString();
-  //     });
-  //     ScaffoldMessenger.of(
-  //       context,
-  //     ).showSnackBar(SnackBar(content: Text("Login gagal: $errorMessage")));
-  //   } finally {
-  //     setState(() => isLoading = false);
-  //   }
-  // }
-
   // Method untuk debug print response
   void _debugPrintResponse() {
-    print('=== DEBUG LOGIN RESPONSE ===');
+    print('=== DEBUG REGISTER RESPONSE ===');
     print('Message: ${user?.message}');
     print('Token: ${user?.token}'); // Token di root
     print('User name: ${user?.user?.name}');
@@ -158,43 +102,24 @@ class _LoginAPIScreenState extends State<LoginAPIScreen> {
     print('User ID: ${user?.user?.id}');
     print('Email verified: ${user?.user?.emailVerifiedAt}');
     print('Full response: ${user?.toJson()}');
-    print('============================');
-  }
-
-  // Method untuk debug print error
-  void _debugPrintError(dynamic e) {
-    print('=== LOGIN ERROR ===');
-    print('Error: $e');
-    print('Error type: ${e.runtimeType}');
-    if (e is Error) {
-      print('Stack trace: ${e.stackTrace}');
-    }
-    print('===================');
+    print('===============================');
   }
 
   // Method untuk save user data - DIUBAH untuk model baru
-  Future<void> _saveUserData(String email) async {
+  Future<void> _saveUserData(String email, String name) async {
     // PERBAIKAN: Token di root, bukan dalam data
-    if (user?.token != null && user!.token!.isNotEmpty) {
-      await AuthService.saveToken(user!.token!);
-    }
-
-    // simpan email
+    await AuthService.saveToken(user!.token!);
     await AuthService.saveUserEmail(email);
+    await AuthService.saveUserName(name);
 
-    // simpan nama - prioritaskan dari response, jika tidak ada gunakan dari email
-    final userName = user?.user?.name ?? email.split('@')[0];
-    await AuthService.saveUserName(userName);
-
-    // Simpan user ID jika ada
     final userId = user?.user?.id;
     if (userId != null) {
       await AuthService.saveUserId(userId);
     }
 
     print('=== DATA YANG DISIMPAN ===');
-    print('Token: ${user?.token ?? "null"}');
-    print('Name: $userName');
+    print('Token: ${user!.token}'); // Token di root
+    print('Name: $name');
     print('Email: $email');
     print('ID: $userId');
     print('==========================');
@@ -208,38 +133,37 @@ class _LoginAPIScreenState extends State<LoginAPIScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset(
-                "assets/images/lg_tixclick.png",
-                height: 180,
-                width: 180,
-                fit: BoxFit.contain,
+              Text(
+                "Register",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
-              const SizedBox(height: 8),
-              // Text(
-              //   "TIXCLICK",
-              //   style: TextStyle(
-              //     fontSize: 30,
-              //     fontFamily: "BebasNeue",
-              //     fontWeight: FontWeight.bold,
-              //     color: Colors.white,
-              //   ),
-              // ),
-              height(8),
+              height(24),
               buildTitle("Email Address"),
-              height(8),
+              height(12),
               buildTextField(
                 hintText: "Enter your email",
                 controller: emailController,
               ),
+              height(16),
+              buildTitle("Name"),
               height(12),
+              buildTextField(
+                hintText: "Enter your name",
+                controller: nameController,
+              ),
+              height(16),
               buildTitle("Password"),
-              height(8),
+              height(12),
               buildTextField(
                 hintText: "Enter your password",
                 isPassword: true,
                 controller: passwordController,
               ),
-              height(8),
+              height(12),
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton(
@@ -256,29 +180,27 @@ class _LoginAPIScreenState extends State<LoginAPIScreen> {
                   ),
                 ),
               ),
-              height(8),
+              height(24),
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: isLoading ? null : loginUser,
+                  onPressed: isLoading ? null : registerUser,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: isLoading
-                        ? Colors.grey
-                        : const Color.fromARGB(255, 255, 255, 255),
+                    backgroundColor: isLoading ? Colors.grey : Colors.white,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(6),
                     ),
                   ),
                   child: isLoading
-                      ? const CircularProgressIndicator(color: Colors.black)
+                      ? const CircularProgressIndicator()
                       : Text(
-                          "Login",
+                          "Submit",
                           style: TextStyle(fontSize: 16, color: Colors.black),
                         ),
                 ),
               ),
-              height(122),
+              height(16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -302,7 +224,7 @@ class _LoginAPIScreenState extends State<LoginAPIScreen> {
                   ),
                 ],
               ),
-              height(12),
+              height(16),
               SizedBox(
                 height: 48,
                 child: ElevatedButton(
@@ -317,8 +239,8 @@ class _LoginAPIScreenState extends State<LoginAPIScreen> {
                     children: [
                       Image.asset(
                         "assets/images/google.png",
-                        height: 20,
-                        width: 20,
+                        height: 16,
+                        width: 16,
                       ),
                       width(4),
                       Text("Google", style: TextStyle(color: Colors.black)),
@@ -326,20 +248,25 @@ class _LoginAPIScreenState extends State<LoginAPIScreen> {
                   ),
                 ),
               ),
-              height(8),
+              height(16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    "Don't have an account?",
+                    "Have an account?",
                     style: TextStyle(fontSize: 12, color: Colors.white),
                   ),
                   TextButton(
                     onPressed: () {
-                      context.push(const PostApiScreen());
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => LoginAPIScreen(),
+                        ),
+                      );
                     },
                     child: Text(
-                      "Sign Up",
+                      "Sign In",
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 12,

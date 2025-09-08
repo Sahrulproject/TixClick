@@ -4,7 +4,7 @@ class PreferenceHandler {
   static const String loginKey = "login";
   static const String tokenKey = "token";
 
-  // Simpan data - tetap void karena tidak perlu return value
+  // Simpan data
   static Future<void> saveLogin() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(loginKey, true);
@@ -15,7 +15,7 @@ class PreferenceHandler {
     await prefs.setString(tokenKey, token);
   }
 
-  // Ambil data - return value dengan type annotation yang jelas
+  // Ambil data
   static Future<bool?> getLogin() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getBool(loginKey);
@@ -35,5 +35,12 @@ class PreferenceHandler {
   static Future<void> removeToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(tokenKey);
+  }
+
+  // NEW METHOD: Clear all authentication data
+  static Future<void> clearToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(tokenKey);
+    await prefs.remove(loginKey); // Also clear login status
   }
 }
